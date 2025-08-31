@@ -33,10 +33,13 @@ if audio_file is not None:
 
     # Speech-to-Text
     with open(audio_path, "rb") as f:
-        transcript = openai.Audio.transcriptions.create(
-            model="whisper-1",
-            file=f
-        )
+        transcript = openai.audio.transcriptions.create(
+    model="whisper-1",
+    file=f
+)
+user_text = transcript["text"]
+
+        
     user_text = transcript.text
     st.write(f"**You said:** {user_text}")
 
@@ -52,10 +55,11 @@ if audio_file is not None:
 
     # Text-to-Speech
     with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tts_file:
-        tts_audio = openai.audio.speech.create(
-            model="gpt-4o-mini-tts",
-            voice="alloy",
-            input=bot_text
+        tts_audio = openai.audio.speech.synthesize(
+    model="gpt-4o-mini-tts",
+    voice="alloy",
+    input=bot_text
+
         )
         tts_file.write(tts_audio.read())
         st.audio(tts_file.name, format="audio/mp3")
