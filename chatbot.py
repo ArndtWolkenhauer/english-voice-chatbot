@@ -1,11 +1,11 @@
 import streamlit as st
-from openai import OpenAI
+import openai
 import tempfile
 import time
 from fpdf import FPDF
 
-# OpenAI Client initialisieren (nimmt API-Key automatisch aus Umgebungsvariable OPENAI_API_KEY)
-client = OpenAI()
+# OpenAI Client initialisieren
+client = openai.OpenAI()
 
 # System Prompt Template
 system_prompt_template = """
@@ -17,7 +17,7 @@ You are an English teacher conducting a speaking exercise with a student at 8th 
 - The student has been given the following text to discuss:
 {conversation_text}
 - During the conversation:
-  1. Ask approximately 2 specific questions about the text to check that the student has understood it.
+  1. Ask at least 2 specific questions about the text to check that the student has understood it (spread them out during the conversation).
   2. If the student answers correctly and fluently, give positive reinforcement.
   3. If there are mistakes, provide gentle correction and encourage improvement.
 - Engage in a conversation lasting up to 3 minutes (~10–15 exchanges).
@@ -25,12 +25,12 @@ You are an English teacher conducting a speaking exercise with a student at 8th 
   1. What the student did well.
   2. What needs improvement (mention grammar, vocabulary, fluency, and answers to the text questions).
   3. Assign a final grade from 1 to 6 using these rules:
-     - 1 = excellent
-     - 2 = very good
-     - 3 = good
-     - 4 = satisfactory
-     - 5 = poor
-     - 6 = very poor
+     - 1 = excellent: student answered text questions correctly, with very good grammar, vocabulary, and fluency.
+     - 2 = very good: minor mistakes, answers mostly correct, good fluency.
+     - 3 = good: some mistakes, partial correctness, fair fluency.
+     - 4 = satisfactory: multiple mistakes, partially incorrect answers, limited fluency.
+     - 5 = poor: many mistakes, mostly incorrect answers, poor fluency.
+     - 6 = very poor: unable to answer correctly, very limited language skills.
 - Be friendly, supportive, and motivate the student.
 """
 
@@ -46,7 +46,7 @@ We took lots of breaks and sat in cafes along the river Seine. The French food w
 
 st.title("🎤 English Speaking Practice Bot by Wolkenhauer")
 
-# Session Variablen
+# Session-Variablen initialisieren
 if "messages" not in st.session_state:
     st.session_state["messages"] = []
 if "start_time" not in st.session_state:
@@ -55,10 +55,10 @@ if "finished" not in st.session_state:
     st.session_state["finished"] = False
 if "topic_set" not in st.session_state:
     st.session_state["topic_set"] = False
-if "asked_text_question" not in st.session_state:
-    st.session_state["asked_text_question"] = False
+if "text_questions_asked" not in st.session_state:
+    st.session_state["text_questions_asked"] = 0
 
-# Hilfsfunktion PDF-Ausgabe
+# Hilfsfunktion zur sicheren PDF-Ausgabe
 def safe_text(text):
     return text.encode('latin-1', errors='replace').decode('latin-1')
 
@@ -77,7 +77,7 @@ if not st.session_state["topic_set"]:
         st.session_state["start_time"] = time.time()
         st.success(f"Topic set: {topic}")
 
-# Timer
+# Timer anzeigen
 if st.session_state.get("start_time"):
     elapsed = time.time() - st.session_state["start_time"]
     remaining = max(0, 180 - int(elapsed))  # 3 Minuten
@@ -85,7 +85,7 @@ if st.session_state.get("start_time"):
     seconds = remaining % 60
     st.info(f"⏱ Remaining time: {minutes:02d}:{seconds:02d}")
 
-# Audio aufnehmen und GPT
+# Audio aufnehmen und GPT-Antworten
 if st.session_state["topic_set"] and not st.session_state["finished"]:
     audio_input = st.audio_input("🎙️ Record your answer")
     
@@ -105,10 +105,11 @@ if st.session_state["topic_set"] and not st.session_state["finished"]:
         user_text = transcript.text
         st.write(f"**You said:** {user_text}")
 
+        # Schülerbeitrag speichern
         st.session_state["messages"].append({"role": "user", "content": user_text})
 
-        # Prüfen, ob schon 2 Antworten vorliegen -> dann Textfrage
-        if len([m for m in st.session_state["messages"] if m["role"] == "user"]) >= 2 and not st.session_state["asked_text_question"]:
+        # Wenn weniger als 2 Textfragen gestellt wurden → gezielt eine stellen
+        if st.session_state["text_questions_asked"] < 2:
             question_prompt = st.session_state["messages"] + [
                 {"role": "system", "content": "Ask one comprehension question about the provided text to the student."}
             ]
@@ -118,8 +119,9 @@ if st.session_state["topic_set"] and not st.session_state["finished"]:
             )
             assistant_response = response.choices[0].message.content
             st.session_state["messages"].append({"role": "assistant", "content": assistant_response})
-            st.session_state["asked_text_question"] = True
+            st.session_state["text_questions_asked"] += 1
         else:
+            # Normale GPT-Antwort
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=st.session_state["messages"]
@@ -127,6 +129,7 @@ if st.session_state["topic_set"] and not st.session_state["finished"]:
             assistant_response = response.choices[0].message.content
             st.session_state["messages"].append({"role": "assistant", "content": assistant_response})
 
+        # Text anzeigen
         st.write(f"**Teacher:** {assistant_response}")
 
         # Text-to-Speech
@@ -136,13 +139,12 @@ if st.session_state["topic_set"] and not st.session_state["finished"]:
             input=assistant_response
         )
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tts_file:
-            for chunk in tts_response.iter_bytes():
-                tts_file.write(chunk)
+            tts_file.write(tts_response.read())
             tts_filename = tts_file.name
 
         st.audio(tts_filename)
 
-# Feedback nach 3 Minuten
+# Am Ende der 3 Minuten: Feedback + PDF
 if st.session_state.get("start_time"):
     elapsed = time.time() - st.session_state["start_time"]
     if elapsed >= 180 and not st.session_state["finished"]:
@@ -182,6 +184,7 @@ if st.session_state.get("start_time"):
 
         pdf_file = generate_pdf(st.session_state["messages"], feedback_text)
 
+        # Download-Button
         with open(pdf_file, "rb") as f:
             st.download_button(
                 label="📥 Download conversation as PDF",
