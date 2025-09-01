@@ -54,11 +54,15 @@ if audio_file is not None:
 
     # Text-to-Speech mit gpt-4o-mini-tts
     with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tts_file:
-        tts_audio = openai.audio.speech.synthesize(
-            model="gpt-4o-mini-tts",
-            voice="alloy",
-            input=bot_text
-        )
+       tts_response = client.audio.speech.create(
+    model="gpt-4o-mini-tts",
+    voice="alloy",
+    input=assistant_response
+)
+
+# Audio in Datei speichern
+with open("assistant_response.mp3", "wb") as f:
+    f.write(tts_response.read())
         tts_file.write(tts_audio.read())
         st.audio(tts_file.name, format="audio/mp3")
 
