@@ -1,23 +1,23 @@
 import streamlit as st
 from openai import OpenAI
 
-# OpenAI Client initialisieren
+# OpenAI Client
 client = OpenAI()
 
 st.title("🎙️ English Voice Chatbot")
-st.write("Sprich Englisch: Lade eine Sprachaufnahme hoch, der Bot antwortet mit Stimme.")
+st.write("Sprich Englisch direkt ins Mikrofon. Der Bot antwortet mit Text und Stimme.")
 
-# Upload eines Audio-Files
-audio_file = st.file_uploader("Upload your spoken answer (mp3 or wav)", type=["mp3", "wav"])
+# ====== 1. Sprachaufnahme ======
+audio_input = st.audio_input("🎤 Record your voice")
 
-if audio_file is not None:
-    st.audio(audio_file, format="audio/mp3")
+if audio_input is not None:
+    st.audio(audio_input)
 
-    # ====== 1. Speech-to-Text (Whisper) ======
-    with open("user_input.mp3", "wb") as f:
-        f.write(audio_file.getbuffer())
+    # ====== 2. Speech-to-Text (Whisper) ======
+    with open("user_input.wav", "wb") as f:
+        f.write(audio_input.getbuffer())
 
-    with open("user_input.mp3", "rb") as f:
+    with open("user_input.wav", "rb") as f:
         transcript = client.audio.transcriptions.create(
             model="whisper-1",
             file=f
@@ -26,7 +26,7 @@ if audio_file is not None:
     user_text = transcript.text
     st.write(f"**You said:** {user_text}")
 
-    # ====== 2. GPT-4o Antwort generieren ======
+    # ====== 3. GPT-4o Antwort ======
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
@@ -38,7 +38,7 @@ if audio_file is not None:
     assistant_response = response.choices[0].message.content
     st.write(f"**Assistant:** {assistant_response}")
 
-    # ====== 3. Text-to-Speech ======
+    # ====== 4. Text-to-Speech ======
     tts_response = client.audio.speech.create(
         model="gpt-4o-mini-tts",
         voice="alloy",
