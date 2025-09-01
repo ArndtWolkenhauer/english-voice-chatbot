@@ -2,18 +2,18 @@ import streamlit as st
 import openai
 import tempfile
 import time
+import base64
 
 # OpenAI Client initialisieren
 client = openai.OpenAI()
 
-# System Prompt: Rolle festlegen
-system_prompt = """
+# System Prompt Vorlage für 8.-Klassen-Niveau
+system_prompt_template = """
 You are an English teacher conducting a speaking exercise with a student at 8th grade level.
 - Speak slowly and clearly, encourage the student to speak as much as possible.
 - Use simple vocabulary appropriate for 8th grade.
 - Focus on fluency, pronunciation, grammar, and vocabulary.
-- The student will first choose a topic for the conversation. 
-- Engage in a conversation lasting up to 3 minutes (~10–15 exchanges).
+- Engage in a conversation lasting up to 5 minutes (~10–15 exchanges).
 - At the end of the conversation, provide detailed feedback in English:
   1. What the student did well.
   2. What can be improved.
@@ -21,39 +21,49 @@ You are an English teacher conducting a speaking exercise with a student at 8th 
 - Be friendly, supportive, and motivate the student.
 """
 
-st.title("🎤 English Speaking Practice Bot by Wolkenhauer")
+st.title("🎤 English Speaking Practice Bot (8th Grade)")
 
 # Session-Variablen initialisieren
 if "messages" not in st.session_state:
-    st.session_state["messages"] = [{"role": "system", "content": system_prompt}]
+    st.session_state["messages"] = []
 if "start_time" not in st.session_state:
-    st.session_state["start_time"] = time.time()
+    st.session_state["start_time"] = None
 if "finished" not in st.session_state:
     st.session_state["finished"] = False
+if "topic_set" not in st.session_state:
+    st.session_state["topic_set"] = False
+
+# Schüler wählt Thema am Anfang
+if not st.session_state["topic_set"]:
+    topic = st.text_input("Enter a topic for your conversation:")
+    if topic:
+        st.session_state["messages"].append({
+            "role": "system",
+            "content": system_prompt_template + f"\nThe student wants to talk about: {topic}"
+        })
+        st.session_state["topic_set"] = True
+        st.session_state["start_time"] = time.time()
+        st.success(f"Topic set: {topic}")
 
 # Timer prüfen
-elapsed = time.time() - st.session_state["start_time"]
-
-if elapsed >= 180 and not st.session_state["finished"]:  # 5 Minuten = 300 Sekunden
-    st.subheader("📊 Final Feedback & Grade")
-
-    feedback = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=st.session_state["messages"] + [
-            {"role": "system", "content": "Now, as the English teacher, summarize the conversation and give final feedback with a grade (1–6)."}
-        ]
-    )
-
-    st.write(feedback.choices[0].message.content)
-
-    # Session zurücksetzen
-    st.session_state["finished"] = True
-    st.stop()
+if st.session_state["start_time"]:
+    elapsed = time.time() - st.session_state["start_time"]
+    if elapsed >= 300 and not st.session_state["finished"]:  # 5 Minuten = 300 Sekunden
+        st.subheader("📊 Final Feedback & Grade")
+        feedback = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=st.session_state["messages"] + [
+                {"role": "system", "content": "Now, as the English teacher, summarize the conversation and give final feedback with a grade (1–6)."}
+            ]
+        )
+        st.write(feedback.choices[0].message.content)
+        st.session_state["finished"] = True
+        st.stop()
 
 # Audio aufnehmen
 audio_input = st.audio_input("🎙️ Record your answer")
 
-if audio_input and not st.session_state["finished"]:
+if audio_input and not st.session_state["finished"] and st.session_state["topic_set"]:
     # Temporäre Datei speichern
     with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:
         f.write(audio_input.getbuffer())
@@ -90,8 +100,11 @@ if audio_input and not st.session_state["finished"]:
         input=assistant_response
     )
 
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tts_file:
-        tts_file.write(tts_response.read())
-        tts_filename = tts_file.name
-
-    st.audio(tts_filename)
+    # Audio automatisch abspielen (HTML + Base64)
+    audio_file = tts_response.read()
+    b64_audio = base64.b64encode(audio_file).decode()
+    st.markdown(f"""
+        <audio autoplay>
+            <source src="data:audio/mp3;base64,{b64_audio}" type="audio/mp3">
+        </audio>
+    """, unsafe_allow_html=True)
