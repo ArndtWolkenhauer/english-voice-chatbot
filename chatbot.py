@@ -30,22 +30,15 @@ You are an English teacher conducting a speaking exercise with a student at 8th 
      - Encourage longer, more detailed answers if the student speaks very little or takes long pauses.
      - Praise and acknowledge detailed answers if the student speaks at length.
      - Note sentence complexity (simple, compound, complex) and give gentle suggestions for improvement.
-  4. If the student answers correctly and fluently, give positive reinforcement using their name or phrases like "Good job, you answered…".
-  5. If there are mistakes, provide gentle correction and encourage improvement, e.g., "I noticed you struggled with…".
+  4. If the student answers correctly and fluently, give positive reinforcement.
+  5. If there are mistakes, provide gentle correction.
 - Engage in a conversation lasting up to 3 minutes (~10–15 exchanges).
 - At the end of the conversation, provide detailed feedback in English:
   1. What the student did well.
   2. Summarize the conversation, highlighting what the student did and how they participated.
   3. Analyze performance: grammar, vocabulary, fluency, comprehension of text questions, answer length, sentence complexity, and response time.
-     - Give **extra weight to sentence length and complexity**: if most answers are very short or simple, reduce the grade by one level, even if grammar, vocabulary, and comprehension are good.
-  4. What needs improvement (mention grammar, vocabulary, fluency, answer length, and sentence complexity).
-  5. Assign a final grade from 1 to 6 using these rules:
-     - 1 = excellent: correct answers, very good grammar, vocabulary, fluency, timely responses, and detailed, complex sentences.
-     - 2 = very good: minor mistakes, mostly correct answers, good fluency, mostly timely responses, fairly detailed answers with some complex sentences.
-     - 3 = good: some mistakes, partial correctness, fair fluency, **mostly short or simple sentences**, occasional delays in responses.
-     - 4 = satisfactory: multiple mistakes, partially incorrect answers, limited fluency, short or incomplete sentences, frequent delays.
-     - 5 = poor: many mistakes, mostly incorrect answers, poor fluency, very short answers, very slow responses.
-     - 6 = very poor: unable to answer correctly, very limited language skills, extremely short or no answers, very slow or no responses.
+  4. What needs improvement.
+  5. Assign a final grade from 1 to 6.
 """
 
 st.title("🎤 English Speaking Practice Bot by Wolkenhauer")
@@ -130,14 +123,7 @@ if st.session_state["text_loaded"] and not st.session_state["finished"]:
         st.session_state["messages"].append({"role": "assistant", "content": assistant_response})
         st.write(f"**Teacher:** {assistant_response}")
 
-        # TTS für einzelne Lehrerantwort
-        tts_response = client.audio.speech.create(model="gpt-4o-mini-tts", voice="alloy", input=assistant_response)
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tts_file:
-            tts_file.write(tts_response.read())
-            tts_filename = tts_file.name
-        st.audio(tts_filename)
-
-# --- Feedback, PDF + MP3 ---
+# --- Feedback & PDF ---
 if st.session_state.get("start_time"):
     elapsed = time.time() - st.session_state["start_time"]
     if elapsed >= 180 and not st.session_state["finished"]:
@@ -167,40 +153,22 @@ if st.session_state.get("start_time"):
             pdf.ln(10)
             for msg in messages:
                 role = msg["role"].capitalize()
-                content = msg["content"].encode('latin-1', errors='replace').decode('latin-1')
+                content = safe_text(msg["content"])
                 pdf.multi_cell(0, 10, f"{role}: {content}")
                 pdf.ln(2)
             pdf.ln(5)
             pdf.set_font("Arial", "B", 12)
             pdf.cell(0, 10, "Final Feedback:", ln=True)
             pdf.set_font("Arial", size=12)
-            pdf.multi_cell(0, 10, feedback_text.encode('latin-1', errors='replace').decode('latin-1'))
+            pdf.multi_cell(0, 10, safe_text(feedback_text))
             pdf.output(filename)
             return filename
 
         pdf_file = generate_pdf(st.session_state["messages"], feedback_text)
 
-        # --- MP3 generieren ---
-        full_dialog = ""
-        for msg in st.session_state["messages"]:
-            if msg["role"] == "user":
-                full_dialog += f"Student: {msg['content']}\n"
-            elif msg["role"] == "assistant":
-                full_dialog += f"Teacher: {msg['content']}\n"
-
-        tts_full = client.audio.speech.create(model="gpt-4o-mini-tts", voice="alloy", input=full_dialog)
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as f:
-            f.write(tts_full.read())
-            full_mp3 = f.name
-
-        # --- Beide Download-Buttons gleichzeitig anzeigen ---
-        col1, col2 = st.columns(2)
-        with col1:
-            with open(pdf_file, "rb") as f:
-                st.download_button("📥 Download conversation as PDF", f, "conversation.pdf")
-        with col2:
-            with open(full_mp3, "rb") as f:
-                st.download_button("🎧 Download full conversation as MP3", f, "conversation.mp3")
+        # --- PDF Downloadbutton ---
+        with open(pdf_file, "rb") as f:
+            st.download_button("📥 Download conversation as PDF", f, "conversation.pdf")
 
         st.session_state["finished"] = True
         st.stop()
