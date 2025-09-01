@@ -9,10 +9,10 @@ import random
 # OpenAI Client initialisieren
 client = openai.OpenAI()
 
-# Texte auf GitHub (achte auf "raw" URLs)
+# Texte auf GitHub (raw URLs)
 text_options = {
-    "New_York": "https://raw.githubusercontent.com/ArndtWolkenhauer/texts/main/New_York",
-    "Summer_Vacation_Paris": "https://raw.githubusercontent.com/ArndtWolkenhauer/texts/main/Summer_Vacation_Paris"
+    "New_York": "https://raw.githubusercontent.com/ArndtWolkenhauer/texts/main/New_York.txt",
+    "Summer_Vacation_Paris": "https://raw.githubusercontent.com/ArndtWolkenhauer/texts/main/Summer_Vacation_Paris.txt"
 }
 
 # System Prompt Template
@@ -21,7 +21,6 @@ You are an English teacher conducting a speaking exercise with a student at 8th 
 - Speak slowly and clearly, encourage the student to speak as much as possible.
 - Use simple vocabulary appropriate for 8th grade.
 - Focus on fluency, pronunciation, grammar, and vocabulary.
-- The student will first choose a topic for the conversation. 
 - The student has been given the following text to discuss:
 {conversation_text}
 - During the conversation:
@@ -52,9 +51,9 @@ You are an English teacher conducting a speaking exercise with a student at 8th 
 st.title("🎤 English Speaking Practice Bot by Wolkenhauer")
 
 # Session Variablen
-for var in ["messages", "start_time", "finished", "topic_set", "text_questions_asked", "text_loaded"]:
+for var in ["messages", "start_time", "finished", "text_questions_asked", "text_loaded"]:
     if var not in st.session_state:
-        st.session_state[var] = False if var in ["finished", "topic_set", "text_loaded"] else 0 if var=="text_questions_asked" else []
+        st.session_state[var] = False if var in ["finished", "text_loaded"] else 0
 
 # Hilfsfunktion für PDF
 def safe_text(text):
@@ -73,24 +72,18 @@ if not st.session_state["text_loaded"]:
         except requests.RequestException:
             conversation_text = "Placeholder text for English speaking practice."
             st.warning(f"⚠️ Could not load the selected text '{selected_text_name}' from GitHub. Using placeholder text.")
+        
+        # Prompt direkt setzen, kein zusätzliches Thema nötig
+        system_prompt = system_prompt_template.format(conversation_text=conversation_text)
+        st.session_state["messages"].append({"role": "system", "content": system_prompt})
         st.session_state["conversation_text"] = conversation_text
         st.session_state["text_loaded"] = True
+        st.session_state["start_time"] = time.time()
 
 # Text anzeigen
 if st.session_state.get("text_loaded"):
     st.subheader("📖 Conversation Text / Ausgangstext")
     st.write(st.session_state["conversation_text"])
-
-# --- Thema wählen ---
-if st.session_state.get("text_loaded") and not st.session_state["topic_set"]:
-    topic = st.text_input("Enter a topic for your conversation:")
-    if topic:
-        system_prompt = system_prompt_template.format(conversation_text=st.session_state["conversation_text"])
-        system_prompt += f"\nThe student wants to talk about: {topic}"
-        st.session_state["messages"].append({"role": "system", "content": system_prompt})
-        st.session_state["topic_set"] = True
-        st.session_state["start_time"] = time.time()
-        st.success(f"Topic set: {topic}")
 
 # --- Timer ---
 if st.session_state.get("start_time"):
@@ -101,7 +94,7 @@ if st.session_state.get("start_time"):
     st.info(f"⏱ Remaining time: {minutes:02d}:{seconds:02d}")
 
 # --- Gespräch ---
-if st.session_state["topic_set"] and not st.session_state["finished"]:
+if st.session_state["text_loaded"] and not st.session_state["finished"]:
     audio_input = st.audio_input("🎙️ Record your answer")
     if audio_input:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:
@@ -143,14 +136,14 @@ if st.session_state.get("start_time"):
     if elapsed >= 180 and not st.session_state["finished"]:
         st.subheader("📊 Final Feedback & Grade")
 
-        # Schritt 1: Zusammenfassung
+        # Zusammenfassung
         summary = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=st.session_state["messages"] + [{"role": "system", "content": "Summarize the conversation from the teacher's perspective."}]
         )
         summary_text = summary.choices[0].message.content
 
-        # Schritt 2: Fehleranalyse + Note
+        # Feedback + Note
         feedback = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=st.session_state["messages"] + [{"role": "system", "content": f"Now give detailed feedback and assign a grade (1-6). Include performance on grammar, vocabulary, fluency, comprehension, answer length, sentence complexity, and response time. Conversation summary: {summary_text}"}]
