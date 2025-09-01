@@ -37,15 +37,15 @@ You are an English teacher conducting a speaking exercise with a student at 8th 
   1. What the student did well.
   2. Summarize the conversation, highlighting what the student did and how they participated.
   3. Analyze performance: grammar, vocabulary, fluency, comprehension of text questions, answer length, sentence complexity, and response time.
-  4. What needs improvement (mention grammar, vocabulary, fluency, and answers to the text questions).
+     - Give **extra weight to sentence length and complexity**: if most answers are very short or simple, reduce the grade by one level, even if grammar, vocabulary, and comprehension are good.
+  4. What needs improvement (mention grammar, vocabulary, fluency, answer length, and sentence complexity).
   5. Assign a final grade from 1 to 6 using these rules:
      - 1 = excellent: correct answers, very good grammar, vocabulary, fluency, timely responses, and detailed, complex sentences.
-     - 2 = very good: minor mistakes, mostly correct answers, good fluency, mostly timely responses, fairly detailed answers.
-     - 3 = good: some mistakes, partial correctness, fair fluency, somewhat short or simple sentences, occasional delays in responses.
+     - 2 = very good: minor mistakes, mostly correct answers, good fluency, mostly timely responses, fairly detailed answers with some complex sentences.
+     - 3 = good: some mistakes, partial correctness, fair fluency, **mostly short or simple sentences**, occasional delays in responses.
      - 4 = satisfactory: multiple mistakes, partially incorrect answers, limited fluency, short or incomplete sentences, frequent delays.
      - 5 = poor: many mistakes, mostly incorrect answers, poor fluency, very short answers, very slow responses.
      - 6 = very poor: unable to answer correctly, very limited language skills, extremely short or no answers, very slow or no responses.
-- Be friendly, supportive, and motivate the student.
 """
 
 st.title("🎤 English Speaking Practice Bot by Wolkenhauer")
