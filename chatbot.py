@@ -2,10 +2,17 @@ import streamlit as st
 import openai
 import tempfile
 import time
+import requests
 from fpdf import FPDF
 
 # OpenAI Client initialisieren
 client = openai.OpenAI()
+
+# Texte auf GitHub
+text_options = {
+    "New_York": "https://raw.githubusercontent.com/DEIN_REPO/texts/main/New_York.txt",
+    "Summer_Vacation_Paris": "https://raw.githubusercontent.com/DEIN_REPO/texts/main/Summer_Vacation_Paris.txt"
+}
 
 # System Prompt Template
 system_prompt_template = """
@@ -41,16 +48,6 @@ You are an English teacher conducting a speaking exercise with a student at 8th 
 - Be friendly, supportive, and motivate the student.
 """
 
-# Beispieltext
-conversation_text = """
-'A great summer vacation
-I just returned from the greatest summer vacation! It was so fantastic, I never wanted it to end. I spent eight days in Paris, France. My best friends, Henry and Steve, went with me. We had a beautiful hotel room in the Latin Quarter, and it wasn’t even expensive. We had a balcony with a wonderful view.
-
-We visited many famous tourist places. My favorite was the Louvre, a well-known museum. I was always interested in art, so that was a special treat for me. The museum is so huge, you could spend weeks there. Henry got tired walking around the museum and said “Enough! I need to take a break and rest.”
-
-We took lots of breaks and sat in cafes along the river Seine. The French food we ate was delicious. The wines were tasty, too. Steve’s favorite part of the vacation was the hotel breakfast. He said he would be happy if he could eat croissants like those forever. We had so much fun that we’re already talking about our next vacation!'
-"""
-
 st.title("🎤 English Speaking Practice Bot by Wolkenhauer")
 
 # Session Variablen
@@ -64,20 +61,38 @@ if "topic_set" not in st.session_state:
     st.session_state["topic_set"] = False
 if "text_questions_asked" not in st.session_state:
     st.session_state["text_questions_asked"] = 0
+if "text_loaded" not in st.session_state:
+    st.session_state["text_loaded"] = False
 
 # Hilfsfunktion für PDF
 def safe_text(text):
     return text.encode('latin-1', errors='replace').decode('latin-1')
 
+# Auswahl des Textes von GitHub mit Fehlerbehandlung
+if not st.session_state["text_loaded"]:
+    selected_text_name = st.selectbox("Choose a text for discussion:", list(text_options.keys()))
+    url = text_options[selected_text_name]
+    try:
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()
+        conversation_text = response.text
+        st.success(f"Loaded text: {selected_text_name}")
+    except requests.RequestException:
+        conversation_text = f"⚠️ Could not load the selected text '{selected_text_name}' from GitHub. Using placeholder text."
+        st.warning(conversation_text)
+        conversation_text += "\n'Placeholder text for English speaking practice.'"
+    st.session_state["conversation_text"] = conversation_text
+    st.session_state["text_loaded"] = True
+
 # Text anzeigen
 st.subheader("📖 Conversation Text / Ausgangstext")
-st.write(conversation_text)
+st.write(st.session_state["conversation_text"])
 
 # Thema wählen
 if not st.session_state["topic_set"]:
     topic = st.text_input("Enter a topic for your conversation:")
     if topic:
-        system_prompt = system_prompt_template.format(conversation_text=conversation_text)
+        system_prompt = system_prompt_template.format(conversation_text=st.session_state["conversation_text"])
         system_prompt += f"\nThe student wants to talk about: {topic}"
         st.session_state["messages"].append({"role": "system", "content": system_prompt})
         st.session_state["topic_set"] = True
@@ -113,8 +128,11 @@ if st.session_state["topic_set"] and not st.session_state["finished"]:
         # Speichern
         st.session_state["messages"].append({"role": "user", "content": user_text})
 
-        # Lehrerantwort (mit Textfragen)
-        if st.session_state["text_questions_asked"] < 2:
+        # Lehrerantwort (Textfragen mit Wahrscheinlichkeit)
+        import random
+        ask_question = random.random() < 0.3 and st.session_state["text_questions_asked"] < 2
+
+        if ask_question:
             question_prompt = st.session_state["messages"] + [
                 {"role": "system", "content": "Ask one comprehension question about the provided text to the student."}
             ]
@@ -134,7 +152,7 @@ if st.session_state["topic_set"] and not st.session_state["finished"]:
         st.session_state["messages"].append({"role": "assistant", "content": assistant_response})
         st.write(f"**Teacher:** {assistant_response}")
 
-        # Einzelne TTS-Ausgabe nur zur Kontrolle
+        # TTS für einzelne Lehrerantwort
         tts_response = client.audio.speech.create(
             model="gpt-4o-mini-tts",
             voice="alloy",
@@ -150,10 +168,21 @@ if st.session_state.get("start_time"):
     elapsed = time.time() - st.session_state["start_time"]
     if elapsed >= 180 and not st.session_state["finished"]:
         st.subheader("📊 Final Feedback & Grade")
+
+        # Schritt 1: Zusammenfassung
+        summary = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=st.session_state["messages"] + [
+                {"role": "system", "content": "Summarize the conversation from the teacher's perspective."}
+            ]
+        )
+        summary_text = summary.choices[0].message.content
+
+        # Schritt 2: Fehleranalyse + Note
         feedback = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=st.session_state["messages"] + [
-                {"role": "system", "content": "Now, as the English teacher, summarize the conversation and give final feedback with a grade (1–6)."}
+                {"role": "system", "content": f"Now give detailed feedback and assign a grade (1-6). Include performance on grammar, vocabulary, fluency, comprehension, answer length, sentence complexity, and response time. Conversation summary: {summary_text}"}
             ]
         )
         feedback_text = feedback.choices[0].message.content
