@@ -52,19 +52,19 @@ if audio_file is not None:
     st.write(f"**Bot:** {bot_text}")
     st.session_state["messages"].append({"role": "assistant", "content": bot_text})
 
-    # Text-to-Speech mit gpt-4o-mini-tts
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tts_file:
-       tts_response = client.audio.speech.create(
+   # Text-to-Speech mit GPT-4o-mini-tts
+tts_response = client.audio.speech.create(
     model="gpt-4o-mini-tts",
     voice="alloy",
     input=assistant_response
 )
 
 # Audio in Datei speichern
-with open("assistant_response.mp3", "wb") as f:
-    f.write(tts_response.read())
-        tts_file.write(tts_audio.read())
-        st.audio(tts_file.name, format="audio/mp3")
+with open("assistant_response.mp3", "wb") as tts_file:
+    tts_file.write(tts_response.read())
+
+# In Streamlit abspielen
+st.audio("assistant_response.mp3")
 
 # 15-Minuten-Timer für Feedback
 elapsed = time.time() - st.session_state["start_time"]
