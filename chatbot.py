@@ -13,10 +13,10 @@ You are an English teacher conducting a speaking exercise with a student at 8th 
 - Speak slowly and clearly, encourage the student to speak as much as possible.
 - Use simple vocabulary appropriate for 8th grade.
 - Focus on fluency, pronunciation, grammar, and vocabulary.
-- The student will first choose a topic for the conversation. 
+- The student will first choose a topic for the conversation.
 - The student has been given the following text to discuss:
 {conversation_text}
-- During the conversation, ask approximately 2 questions about this text to check that the student has understood it.
+- During the conversation, after the student has spoken 2–3 times, ask 1–2 questions directly from the text to check comprehension.
 - Engage in a conversation lasting up to 3 minutes (~10–15 exchanges).
 - At the end of the conversation, provide detailed feedback in English:
   1. What the student did well.
@@ -46,6 +46,8 @@ if "finished" not in st.session_state:
     st.session_state["finished"] = False
 if "topic_set" not in st.session_state:
     st.session_state["topic_set"] = False
+if "asked_text_question" not in st.session_state:
+    st.session_state["asked_text_question"] = False
 
 # Hilfsfunktion zur sicheren PDF-Ausgabe
 def safe_text(text):
@@ -97,13 +99,27 @@ if st.session_state["topic_set"] and not st.session_state["finished"]:
         # Schülerbeitrag speichern
         st.session_state["messages"].append({"role": "user", "content": user_text})
 
-        # GPT-4o Antwort generieren
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=st.session_state["messages"]
-        )
-        assistant_response = response.choices[0].message.content
-        st.session_state["messages"].append({"role": "assistant", "content": assistant_response})
+        # Prüfen, ob schon 2–3 Schülerantworten vorliegen und Textfrage noch nicht gestellt wurde
+        if len([m for m in st.session_state["messages"] if m["role"] == "user"]) >= 2 and not st.session_state["asked_text_question"]:
+            # GPT soll gezielt eine Textfrage stellen
+            question_prompt = st.session_state["messages"] + [
+                {"role": "system", "content": "Ask one comprehension question about the provided text to the student."}
+            ]
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=question_prompt
+            )
+            assistant_response = response.choices[0].message.content
+            st.session_state["messages"].append({"role": "assistant", "content": assistant_response})
+            st.session_state["asked_text_question"] = True
+        else:
+            # Normale GPT-Antwort generieren
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=st.session_state["messages"]
+            )
+            assistant_response = response.choices[0].message.content
+            st.session_state["messages"].append({"role": "assistant", "content": assistant_response})
 
         # Text anzeigen
         st.write(f"**Teacher:** {assistant_response}")
