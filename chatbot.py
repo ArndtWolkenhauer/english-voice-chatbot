@@ -39,7 +39,7 @@ if audio_file is not None:
             model="whisper-1",
             file=f
         )
-    user_text = transcript["text"]
+    user_text = transcript.text
     st.write(f"**You said:** {user_text}")
 
     # GPT-Antwort generieren
