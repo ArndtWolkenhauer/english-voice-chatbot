@@ -2,6 +2,7 @@ import streamlit as st
 import openai
 import tempfile
 import time
+from fpdf import FPDF
 
 # OpenAI Client initialisieren
 client = openai.OpenAI()
@@ -43,20 +44,13 @@ if not st.session_state["topic_set"]:
         st.session_state["start_time"] = time.time()
         st.success(f"Topic set: {topic}")
 
-# Timer prüfen (erst nach Themenwahl)
+# Timer prüfen
 if st.session_state.get("start_time"):
     elapsed = time.time() - st.session_state["start_time"]
-    if elapsed >= 180 and not st.session_state["finished"]:  # 3 Minuten
-        st.subheader("📊 Final Feedback & Grade")
-        feedback = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=st.session_state["messages"] + [
-                {"role": "system", "content": "Now, as the English teacher, summarize the conversation and give final feedback with a grade (1–6)."}
-            ]
-        )
-        st.write(feedback.choices[0].message.content)
-        st.session_state["finished"] = True
-        st.stop()
+    remaining = max(0, 180 - int(elapsed))  # 3 Minuten = 180 Sekunden
+    minutes = remaining // 60
+    seconds = remaining % 60
+    st.info(f"⏱ Remaining time: {minutes:02d}:{seconds:02d}")
 
 # Audio aufnehmen
 if st.session_state["topic_set"] and not st.session_state["finished"]:
@@ -104,14 +98,10 @@ if st.session_state["topic_set"] and not st.session_state["finished"]:
             tts_filename = tts_file.name
 
         st.audio(tts_filename)
-      # Timer prüfen
+
+# Am Ende der 3 Minuten: Feedback + PDF erzeugen
 if st.session_state.get("start_time"):
     elapsed = time.time() - st.session_state["start_time"]
-    remaining = max(0, 180 - int(elapsed))  # 3 Minuten = 180 Sekunden
-    minutes = remaining // 60
-    seconds = remaining % 60
-    st.info(f"⏱ Remaining time: {minutes:02d}:{seconds:02d}")
-
     if elapsed >= 180 and not st.session_state["finished"]:
         st.subheader("📊 Final Feedback & Grade")
         feedback = client.chat.completions.create(
@@ -120,6 +110,42 @@ if st.session_state.get("start_time"):
                 {"role": "system", "content": "Now, as the English teacher, summarize the conversation and give final feedback with a grade (1–6)."}
             ]
         )
-        st.write(feedback.choices[0].message.content)
+        feedback_text = feedback.choices[0].message.content
+        st.write(feedback_text)
+
+        # PDF erstellen
+        def generate_pdf(messages, feedback_text, filename="conversation.pdf"):
+            pdf = FPDF()
+            pdf.add_page()
+            pdf.set_font("Arial", size=12)
+            pdf.cell(0, 10, "English Speaking Practice", ln=True, align="C")
+            pdf.ln(10)
+
+            for msg in messages:
+                role = msg["role"].capitalize()
+                content = msg["content"]
+                pdf.multi_cell(0, 10, f"{role}: {content}")
+                pdf.ln(2)
+
+            pdf.ln(5)
+            pdf.set_font("Arial", "B", 12)
+            pdf.cell(0, 10, "Final Feedback:", ln=True)
+            pdf.set_font("Arial", size=12)
+            pdf.multi_cell(0, 10, feedback_text)
+
+            pdf.output(filename)
+            return filename
+
+        pdf_file = generate_pdf(st.session_state["messages"], feedback_text)
+
+        # Download-Button
+        with open(pdf_file, "rb") as f:
+            st.download_button(
+                label="📥 Download conversation as PDF",
+                data=f,
+                file_name="conversation.pdf",
+                mime="application/pdf"
+            )
+
         st.session_state["finished"] = True
         st.stop()
