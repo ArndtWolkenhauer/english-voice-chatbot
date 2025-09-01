@@ -24,13 +24,7 @@ You are an English teacher conducting a speaking exercise with a student at 8th 
 - At the end of the conversation, provide detailed feedback in English:
   1. What the student did well.
   2. What needs improvement (mention grammar, vocabulary, fluency, and answers to the text questions).
-  3. Assign a final grade from 1 to 6 using these rules:
-     - 1 = excellent: student answered text questions correctly, with very good grammar, vocabulary, and fluency.
-     - 2 = very good: minor mistakes, answers mostly correct, good fluency.
-     - 3 = good: some mistakes, partial correctness, fair fluency.
-     - 4 = satisfactory: multiple mistakes, partially incorrect answers, limited fluency.
-     - 5 = poor: many mistakes, mostly incorrect answers, poor fluency.
-     - 6 = very poor: unable to answer correctly, very limited language skills.
+  3. Assign a final grade from 1 to 6.
 - Be friendly, supportive, and motivate the student.
 """
 
@@ -46,7 +40,7 @@ We took lots of breaks and sat in cafes along the river Seine. The French food w
 
 st.title("🎤 English Speaking Practice Bot by Wolkenhauer")
 
-# Session-Variablen initialisieren
+# Session Variablen
 if "messages" not in st.session_state:
     st.session_state["messages"] = []
 if "start_time" not in st.session_state:
@@ -58,7 +52,7 @@ if "topic_set" not in st.session_state:
 if "text_questions_asked" not in st.session_state:
     st.session_state["text_questions_asked"] = 0
 
-# Hilfsfunktion zur sicheren PDF-Ausgabe
+# Hilfsfunktion für PDF
 def safe_text(text):
     return text.encode('latin-1', errors='replace').decode('latin-1')
 
@@ -77,38 +71,36 @@ if not st.session_state["topic_set"]:
         st.session_state["start_time"] = time.time()
         st.success(f"Topic set: {topic}")
 
-# Timer anzeigen
+# Timer
 if st.session_state.get("start_time"):
     elapsed = time.time() - st.session_state["start_time"]
-    remaining = max(0, 180 - int(elapsed))  # 3 Minuten
+    remaining = max(0, 180 - int(elapsed))
     minutes = remaining // 60
     seconds = remaining % 60
     st.info(f"⏱ Remaining time: {minutes:02d}:{seconds:02d}")
 
-# Audio aufnehmen und GPT-Antworten
+# Gespräch
 if st.session_state["topic_set"] and not st.session_state["finished"]:
     audio_input = st.audio_input("🎙️ Record your answer")
     
     if audio_input:
-        # Temporäre Datei speichern
         with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:
             f.write(audio_input.getbuffer())
             temp_filename = f.name
 
-        # Speech-to-Text mit Whisper
+        # Speech-to-Text
         with open(temp_filename, "rb") as f:
             transcript = client.audio.transcriptions.create(
                 model="whisper-1",
                 file=f
             )
-
         user_text = transcript.text
         st.write(f"**You said:** {user_text}")
 
-        # Schülerbeitrag speichern
+        # Speichern
         st.session_state["messages"].append({"role": "user", "content": user_text})
 
-        # Wenn weniger als 2 Textfragen gestellt wurden → gezielt eine stellen
+        # Lehrerantwort (mit Textfragen)
         if st.session_state["text_questions_asked"] < 2:
             question_prompt = st.session_state["messages"] + [
                 {"role": "system", "content": "Ask one comprehension question about the provided text to the student."}
@@ -118,21 +110,18 @@ if st.session_state["topic_set"] and not st.session_state["finished"]:
                 messages=question_prompt
             )
             assistant_response = response.choices[0].message.content
-            st.session_state["messages"].append({"role": "assistant", "content": assistant_response})
             st.session_state["text_questions_asked"] += 1
         else:
-            # Normale GPT-Antwort
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=st.session_state["messages"]
             )
             assistant_response = response.choices[0].message.content
-            st.session_state["messages"].append({"role": "assistant", "content": assistant_response})
 
-        # Text anzeigen
+        st.session_state["messages"].append({"role": "assistant", "content": assistant_response})
         st.write(f"**Teacher:** {assistant_response}")
 
-        # Text-to-Speech
+        # Einzelne TTS-Ausgabe nur zur Kontrolle
         tts_response = client.audio.speech.create(
             model="gpt-4o-mini-tts",
             voice="alloy",
@@ -141,10 +130,9 @@ if st.session_state["topic_set"] and not st.session_state["finished"]:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tts_file:
             tts_file.write(tts_response.read())
             tts_filename = tts_file.name
-
         st.audio(tts_filename)
 
-# Am Ende der 3 Minuten: Feedback + PDF
+# Am Ende: Feedback, PDF + Gesamte MP3
 if st.session_state.get("start_time"):
     elapsed = time.time() - st.session_state["start_time"]
     if elapsed >= 180 and not st.session_state["finished"]:
@@ -158,7 +146,7 @@ if st.session_state.get("start_time"):
         feedback_text = feedback.choices[0].message.content
         st.write(feedback_text)
 
-        # PDF erstellen
+        # PDF speichern
         def generate_pdf(messages, feedback_text, filename="conversation.pdf"):
             pdf = FPDF()
             pdf.add_page()
@@ -183,15 +171,28 @@ if st.session_state.get("start_time"):
             return filename
 
         pdf_file = generate_pdf(st.session_state["messages"], feedback_text)
-
-        # Download-Button
         with open(pdf_file, "rb") as f:
-            st.download_button(
-                label="📥 Download conversation as PDF",
-                data=f,
-                file_name="conversation.pdf",
-                mime="application/pdf"
-            )
+            st.download_button("📥 Download conversation as PDF", f, "conversation.pdf")
+
+        # Gesamte Unterhaltung als MP3
+        full_dialog = ""
+        for msg in st.session_state["messages"]:
+            if msg["role"] == "user":
+                full_dialog += f"Student: {msg['content']}\n"
+            elif msg["role"] == "assistant":
+                full_dialog += f"Teacher: {msg['content']}\n"
+
+        tts_full = client.audio.speech.create(
+            model="gpt-4o-mini-tts",
+            voice="alloy",
+            input=full_dialog
+        )
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as f:
+            f.write(tts_full.read())
+            full_mp3 = f.name
+
+        with open(full_mp3, "rb") as f:
+            st.download_button("🎧 Download full conversation as MP3", f, "conversation.mp3")
 
         st.session_state["finished"] = True
         st.stop()
