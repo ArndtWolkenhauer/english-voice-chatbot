@@ -21,7 +21,7 @@ You are an English teacher conducting a speaking exercise with a student at 8th 
 - Be friendly, supportive, and motivate the student.
 """
 
-st.title("🎤 English Speaking Practice Bot")
+st.title("🎤 English Speaking Practice Bot by Wolkenhauer")
 
 # Session-Variablen initialisieren
 if "messages" not in st.session_state:
