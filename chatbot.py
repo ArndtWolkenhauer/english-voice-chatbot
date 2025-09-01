@@ -153,12 +153,12 @@ if st.session_state.get("start_time"):
         # Feedback + Note
         feedback = client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=st.session_state["messages"] + [{"role": "system", "content": f"Now give detailed feedback and assign a grade (1-6). Include performance on grammar, vocabulary, fluency, comprehension, answer length, sentence complexity, and response time. Conversation summary: {summary_text}"}]
+            messages=st.session_state["messages"] + [{"role": "system", "content": f"Now give detailed feedback and assign a grade (1-6). Conversation summary: {summary_text}"}]
         )
         feedback_text = feedback.choices[0].message.content
         st.write(feedback_text)
 
-        # PDF speichern
+        # --- PDF generieren ---
         def generate_pdf(messages, feedback_text, filename="conversation.pdf"):
             pdf = FPDF()
             pdf.add_page()
@@ -167,22 +167,20 @@ if st.session_state.get("start_time"):
             pdf.ln(10)
             for msg in messages:
                 role = msg["role"].capitalize()
-                content = safe_text(msg["content"])
+                content = msg["content"].encode('latin-1', errors='replace').decode('latin-1')
                 pdf.multi_cell(0, 10, f"{role}: {content}")
                 pdf.ln(2)
             pdf.ln(5)
             pdf.set_font("Arial", "B", 12)
             pdf.cell(0, 10, "Final Feedback:", ln=True)
             pdf.set_font("Arial", size=12)
-            pdf.multi_cell(0, 10, safe_text(feedback_text))
+            pdf.multi_cell(0, 10, feedback_text.encode('latin-1', errors='replace').decode('latin-1'))
             pdf.output(filename)
             return filename
 
         pdf_file = generate_pdf(st.session_state["messages"], feedback_text)
-        with open(pdf_file, "rb") as f:
-            st.download_button("📥 Download conversation as PDF", f, "conversation.pdf")
 
-        # Gesamte Unterhaltung als MP3
+        # --- MP3 generieren ---
         full_dialog = ""
         for msg in st.session_state["messages"]:
             if msg["role"] == "user":
@@ -195,8 +193,14 @@ if st.session_state.get("start_time"):
             f.write(tts_full.read())
             full_mp3 = f.name
 
-        with open(full_mp3, "rb") as f:
-            st.download_button("🎧 Download full conversation as MP3", f, "conversation.mp3")
+        # --- Beide Download-Buttons gleichzeitig anzeigen ---
+        col1, col2 = st.columns(2)
+        with col1:
+            with open(pdf_file, "rb") as f:
+                st.download_button("📥 Download conversation as PDF", f, "conversation.pdf")
+        with col2:
+            with open(full_mp3, "rb") as f:
+                st.download_button("🎧 Download full conversation as MP3", f, "conversation.mp3")
 
         st.session_state["finished"] = True
         st.stop()
