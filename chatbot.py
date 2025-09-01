@@ -104,3 +104,22 @@ if st.session_state["topic_set"] and not st.session_state["finished"]:
             tts_filename = tts_file.name
 
         st.audio(tts_filename)
+      # Timer prüfen
+if st.session_state.get("start_time"):
+    elapsed = time.time() - st.session_state["start_time"]
+    remaining = max(0, 180 - int(elapsed))  # 3 Minuten = 180 Sekunden
+    minutes = remaining // 60
+    seconds = remaining % 60
+    st.info(f"⏱ Remaining time: {minutes:02d}:{seconds:02d}")
+
+    if elapsed >= 180 and not st.session_state["finished"]:
+        st.subheader("📊 Final Feedback & Grade")
+        feedback = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=st.session_state["messages"] + [
+                {"role": "system", "content": "Now, as the English teacher, summarize the conversation and give final feedback with a grade (1–6)."}
+            ]
+        )
+        st.write(feedback.choices[0].message.content)
+        st.session_state["finished"] = True
+        st.stop()
