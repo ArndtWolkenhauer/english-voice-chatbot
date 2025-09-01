@@ -10,7 +10,7 @@ client = openai.OpenAI()
 
 # Texte auf GitHub
 text_options = {
-    "New_York": "https://raw.githubusercontent.com/arndtwolkenhauer/texts/main/New_York.txt",
+    "New_York": "https://raw.githubusercontent.com/ArndtWolkenhauer/texts/refs/heads/main/New_York",
     "Summer_Vacation_Paris": "https://raw.githubusercontent.com/arndtwolkenhauer/texts/main/Summer_Vacation_Paris.txt"
 }
 
