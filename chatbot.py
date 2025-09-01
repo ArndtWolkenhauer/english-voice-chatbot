@@ -63,7 +63,7 @@ if audio and not st.session_state["finished"]:
             file=f
         )
 
-    user_text = transcript["text"]
+    user_text = transcript.text
     st.write(f"**You said:** {user_text}")
 
     # Schülerbeitrag in Nachrichten speichern
