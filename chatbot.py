@@ -22,6 +22,17 @@ You are an English teacher conducting a speaking exercise with a student at 8th 
 - Be friendly, supportive, and motivate the student.
 """
 
+# Beispieltext für Gesprächsgrundlage
+conversation_text = """
+Here is the text you will discuss:
+'A great summer vacation
+I just returned from the greatest summer vacation! It was so fantastic, I never wanted it to end. I spent eight days in Paris, France. My best friends, Henry and Steve, went with me. We had a beautiful hotel room in the Latin Quarter, and it wasn’t even expensive. We had a balcony with a wonderful view.
+
+We visited many famous tourist places. My favorite was the Louvre, a well-known museum. I was always interested in art, so that was a special treat for me. The museum is so huge, you could spend weeks there. Henry got tired walking around the museum and said “Enough! I need to take a break and rest.”
+
+We took lots of breaks and sat in cafes along the river Seine. The French food we ate was delicious. The wines were tasty, too. Steve’s favorite part of the vacation was the hotel breakfast. He said he would be happy if he could eat croissants like those forever. We had so much fun that we’re already talking about our next vacation!'
+"""
+
 st.title("🎤 English Speaking Practice Bot by Wolkenhauer")
 
 # Session-Variablen initialisieren
@@ -34,11 +45,15 @@ if "finished" not in st.session_state:
 if "topic_set" not in st.session_state:
     st.session_state["topic_set"] = False
 
+# Text anzeigen
+st.subheader("📖 Conversation Text / Ausgangstext")
+st.write(conversation_text)
+
 # Schüler wählt Thema am Anfang
 if not st.session_state["topic_set"]:
     topic = st.text_input("Enter a topic for your conversation:")
     if topic:
-        system_prompt = system_prompt_template + f"\nThe student wants to talk about: {topic}"
+        system_prompt = system_prompt_template + f"\nThe student wants to talk about: {topic}\n\nConversation text for discussion:\n{conversation_text}"
         st.session_state["messages"].append({"role": "system", "content": system_prompt})
         st.session_state["topic_set"] = True
         st.session_state["start_time"] = time.time()
