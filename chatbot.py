@@ -3,7 +3,6 @@ import openai
 import tempfile
 import time
 from fpdf import FPDF
-import os
 
 # OpenAI Client initialisieren
 client = openai.OpenAI()
@@ -133,17 +132,11 @@ if st.session_state.get("start_time"):
         feedback_text = feedback.choices[0].message.content
         st.write(feedback_text)
 
-        # PDF erstellen mit Unicode-Font
+        # PDF erstellen mit Standardfont Helvetica
         def generate_pdf(messages, feedback_text, filename="conversation.pdf"):
             pdf = FPDF()
             pdf.add_page()
-            # TrueType-Font für Unicode
-            font_path = "Arial.ttf"  # Arial.ttf muss im Projekt liegen
-            if not os.path.exists(font_path):
-                st.error("Font file Arial.ttf not found! Please upload it to the project folder.")
-                return None
-            pdf.add_font("ArialUnicode", "", font_path, uni=True)
-            pdf.set_font("ArialUnicode", size=12)
+            pdf.set_font("Helvetica", size=12)
 
             pdf.cell(0, 10, "English Speaking Practice", ln=True, align="C")
             pdf.ln(10)
@@ -155,9 +148,9 @@ if st.session_state.get("start_time"):
                 pdf.ln(2)
 
             pdf.ln(5)
-            pdf.set_font("ArialUnicode", "B", 12)
+            pdf.set_font("Helvetica", "B", 12)
             pdf.cell(0, 10, "Final Feedback:", ln=True)
-            pdf.set_font("ArialUnicode", size=12)
+            pdf.set_font("Helvetica", size=12)
             pdf.multi_cell(0, 10, feedback_text)
 
             pdf.output(filename)
