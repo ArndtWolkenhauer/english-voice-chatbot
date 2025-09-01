@@ -1,8 +1,8 @@
-import streamlit as st
 import openai
 import tempfile
 import time
 from fpdf import FPDF
+import os
 
 # OpenAI Client initialisieren
 client = openai.OpenAI()
@@ -14,6 +14,9 @@ You are an English teacher conducting a speaking exercise with a student at 8th 
 - Use simple vocabulary appropriate for 8th grade.
 - Focus on fluency, pronunciation, grammar, and vocabulary.
 - The student will first choose a topic for the conversation. 
+- The student has been given the following text to discuss:
+{conversation_text}
+- During the conversation, ask approximately 2 questions about this text to check that the student has understood it.
 - Engage in a conversation lasting up to 3 minutes (~10–15 exchanges).
 - At the end of the conversation, provide detailed feedback in English:
   1. What the student did well.
@@ -53,7 +56,8 @@ st.write(conversation_text)
 if not st.session_state["topic_set"]:
     topic = st.text_input("Enter a topic for your conversation:")
     if topic:
-        system_prompt = system_prompt_template + f"\nThe student wants to talk about: {topic}\n\nConversation text for discussion:\n{conversation_text}"
+        system_prompt = system_prompt_template.format(conversation_text=conversation_text)
+        system_prompt += f"\nThe student wants to talk about: {topic}"
         st.session_state["messages"].append({"role": "system", "content": system_prompt})
         st.session_state["topic_set"] = True
         st.session_state["start_time"] = time.time()
@@ -128,11 +132,18 @@ if st.session_state.get("start_time"):
         feedback_text = feedback.choices[0].message.content
         st.write(feedback_text)
 
-        # PDF erstellen
+        # PDF erstellen mit Unicode-Font
         def generate_pdf(messages, feedback_text, filename="conversation.pdf"):
             pdf = FPDF()
             pdf.add_page()
-            pdf.set_font("Arial", size=12)
+            # TrueType-Font für Unicode
+            font_path = "Arial.ttf"  # Arial.ttf muss im Projekt liegen
+            if not os.path.exists(font_path):
+                st.error("Font file Arial.ttf not found! Please upload it to the project folder.")
+                return None
+            pdf.add_font("ArialUnicode", "", font_path, uni=True)
+            pdf.set_font("ArialUnicode", size=12)
+
             pdf.cell(0, 10, "English Speaking Practice", ln=True, align="C")
             pdf.ln(10)
 
@@ -143,9 +154,9 @@ if st.session_state.get("start_time"):
                 pdf.ln(2)
 
             pdf.ln(5)
-            pdf.set_font("Arial", "B", 12)
+            pdf.set_font("ArialUnicode", "B", 12)
             pdf.cell(0, 10, "Final Feedback:", ln=True)
-            pdf.set_font("Arial", size=12)
+            pdf.set_font("ArialUnicode", size=12)
             pdf.multi_cell(0, 10, feedback_text)
 
             pdf.output(filename)
@@ -153,14 +164,15 @@ if st.session_state.get("start_time"):
 
         pdf_file = generate_pdf(st.session_state["messages"], feedback_text)
 
-        # Download-Button
-        with open(pdf_file, "rb") as f:
-            st.download_button(
-                label="📥 Download conversation as PDF",
-                data=f,
-                file_name="conversation.pdf",
-                mime="application/pdf"
-            )
+        if pdf_file:
+            # Download-Button
+            with open(pdf_file, "rb") as f:
+                st.download_button(
+                    label="📥 Download conversation as PDF",
+                    data=f,
+                    file_name="conversation.pdf",
+                    mime="application/pdf"
+                )
 
         st.session_state["finished"] = True
         st.stop()
