@@ -118,6 +118,20 @@ if st.session_state["topic_set"] and not st.session_state["finished"]:
 
         st.audio(tts_filename)
 
+# Funktion, um problematische Unicode-Zeichen zu ersetzen
+def safe_text(text):
+    replacements = {
+        "“": '"',
+        "”": '"',
+        "‘": "'",
+        "’": "'",
+        "–": "-",
+        "…": "..."
+    }
+    for old, new in replacements.items():
+        text = text.replace(old, new)
+    return text
+
 # Am Ende der 3 Minuten: Feedback + PDF erzeugen
 if st.session_state.get("start_time"):
     elapsed = time.time() - st.session_state["start_time"]
@@ -132,26 +146,26 @@ if st.session_state.get("start_time"):
         feedback_text = feedback.choices[0].message.content
         st.write(feedback_text)
 
-        # PDF erstellen mit Standardfont Helvetica
+        # PDF erstellen
         def generate_pdf(messages, feedback_text, filename="conversation.pdf"):
             pdf = FPDF()
             pdf.add_page()
-            pdf.set_font("Helvetica", size=12)
+            pdf.set_font("Arial", size=12)
 
             pdf.cell(0, 10, "English Speaking Practice", ln=True, align="C")
             pdf.ln(10)
 
             for msg in messages:
                 role = msg["role"].capitalize()
-                content = msg["content"]
+                content = safe_text(msg["content"])
                 pdf.multi_cell(0, 10, f"{role}: {content}")
                 pdf.ln(2)
 
             pdf.ln(5)
-            pdf.set_font("Helvetica", "B", 12)
+            pdf.set_font("Arial", "B", 12)
             pdf.cell(0, 10, "Final Feedback:", ln=True)
-            pdf.set_font("Helvetica", size=12)
-            pdf.multi_cell(0, 10, feedback_text)
+            pdf.set_font("Arial", size=12)
+            pdf.multi_cell(0, 10, safe_text(feedback_text))
 
             pdf.output(filename)
             return filename
@@ -159,7 +173,6 @@ if st.session_state.get("start_time"):
         pdf_file = generate_pdf(st.session_state["messages"], feedback_text)
 
         if pdf_file:
-            # Download-Button
             with open(pdf_file, "rb") as f:
                 st.download_button(
                     label="📥 Download conversation as PDF",
