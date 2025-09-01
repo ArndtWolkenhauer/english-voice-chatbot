@@ -7,7 +7,7 @@ from fpdf import FPDF
 # OpenAI Client initialisieren
 client = openai.OpenAI()
 
-# System Prompt: Rolle festlegen
+# System Prompt Template
 system_prompt_template = """
 You are an English teacher conducting a speaking exercise with a student at 8th grade level.
 - Speak slowly and clearly, encourage the student to speak as much as possible.
@@ -25,9 +25,8 @@ You are an English teacher conducting a speaking exercise with a student at 8th 
 - Be friendly, supportive, and motivate the student.
 """
 
-# Beispieltext für Gesprächsgrundlage
+# Beispieltext
 conversation_text = """
-Here is the text you will discuss:
 'A great summer vacation
 I just returned from the greatest summer vacation! It was so fantastic, I never wanted it to end. I spent eight days in Paris, France. My best friends, Henry and Steve, went with me. We had a beautiful hotel room in the Latin Quarter, and it wasn’t even expensive. We had a balcony with a wonderful view.
 
@@ -48,11 +47,15 @@ if "finished" not in st.session_state:
 if "topic_set" not in st.session_state:
     st.session_state["topic_set"] = False
 
+# Hilfsfunktion zur sicheren PDF-Ausgabe
+def safe_text(text):
+    return text.encode('latin-1', errors='replace').decode('latin-1')
+
 # Text anzeigen
 st.subheader("📖 Conversation Text / Ausgangstext")
 st.write(conversation_text)
 
-# Schüler wählt Thema am Anfang
+# Thema wählen
 if not st.session_state["topic_set"]:
     topic = st.text_input("Enter a topic for your conversation:")
     if topic:
@@ -63,15 +66,15 @@ if not st.session_state["topic_set"]:
         st.session_state["start_time"] = time.time()
         st.success(f"Topic set: {topic}")
 
-# Timer prüfen
+# Timer anzeigen
 if st.session_state.get("start_time"):
     elapsed = time.time() - st.session_state["start_time"]
-    remaining = max(0, 180 - int(elapsed))  # 3 Minuten = 180 Sekunden
+    remaining = max(0, 180 - int(elapsed))  # 3 Minuten
     minutes = remaining // 60
     seconds = remaining % 60
     st.info(f"⏱ Remaining time: {minutes:02d}:{seconds:02d}")
 
-# Audio aufnehmen
+# Audio aufnehmen und GPT-Antworten
 if st.session_state["topic_set"] and not st.session_state["finished"]:
     audio_input = st.audio_input("🎙️ Record your answer")
     
@@ -111,28 +114,13 @@ if st.session_state["topic_set"] and not st.session_state["finished"]:
             voice="alloy",
             input=assistant_response
         )
-
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tts_file:
             tts_file.write(tts_response.read())
             tts_filename = tts_file.name
 
         st.audio(tts_filename)
 
-# Funktion, um problematische Unicode-Zeichen zu ersetzen
-def safe_text(text):
-    replacements = {
-        "“": '"',
-        "”": '"',
-        "‘": "'",
-        "’": "'",
-        "–": "-",
-        "…": "..."
-    }
-    for old, new in replacements.items():
-        text = text.replace(old, new)
-    return text
-
-# Am Ende der 3 Minuten: Feedback + PDF erzeugen
+# Am Ende der 3 Minuten: Feedback + PDF
 if st.session_state.get("start_time"):
     elapsed = time.time() - st.session_state["start_time"]
     if elapsed >= 180 and not st.session_state["finished"]:
@@ -172,14 +160,14 @@ if st.session_state.get("start_time"):
 
         pdf_file = generate_pdf(st.session_state["messages"], feedback_text)
 
-        if pdf_file:
-            with open(pdf_file, "rb") as f:
-                st.download_button(
-                    label="📥 Download conversation as PDF",
-                    data=f,
-                    file_name="conversation.pdf",
-                    mime="application/pdf"
-                )
+        # Download-Button
+        with open(pdf_file, "rb") as f:
+            st.download_button(
+                label="📥 Download conversation as PDF",
+                data=f,
+                file_name="conversation.pdf",
+                mime="application/pdf"
+            )
 
         st.session_state["finished"] = True
         st.stop()
