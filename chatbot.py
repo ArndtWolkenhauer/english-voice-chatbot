@@ -30,22 +30,29 @@ You are an English teacher conducting a speaking exercise with a student at 8th 
      - Encourage longer, more detailed answers if the student speaks very little or takes long pauses.
      - Praise and acknowledge detailed answers if the student speaks at length.
      - Note sentence complexity (simple, compound, complex) and give gentle suggestions for improvement.
-  4. If the student answers correctly and fluently, give positive reinforcement.
-  5. If there are mistakes, provide gentle correction.
+  4. If the student answers correctly and fluently, give positive reinforcement using their name or phrases like "Good job, you answered…".
+  5. If there are mistakes, provide gentle correction and encourage improvement, e.g., "I noticed you struggled with…".
 - Engage in a conversation lasting up to 3 minutes (~10–15 exchanges).
 - At the end of the conversation, provide detailed feedback in English:
   1. What the student did well.
   2. Summarize the conversation, highlighting what the student did and how they participated.
   3. Analyze performance: grammar, vocabulary, fluency, comprehension of text questions, answer length, sentence complexity, and response time.
-  4. What needs improvement.
-  5. Assign a final grade from 1 to 6.
+     - Give **extra weight to sentence length and complexity**: if most answers are very short or simple, reduce the grade by one level, even if grammar, vocabulary, and comprehension are good.
+  4. What needs improvement (mention grammar, vocabulary, fluency, answer length, and sentence complexity).
+  5. Assign a final grade from 1 to 6 using these rules:
+     - 1 = excellent: correct answers, very good grammar, vocabulary, fluency, timely responses, and detailed, complex sentences.
+     - 2 = very good: minor mistakes, mostly correct answers, good fluency, mostly timely responses, fairly detailed answers with some complex sentences.
+     - 3 = good: some mistakes, partial correctness, fair fluency, **mostly short or simple sentences**, occasional delays in responses.
+     - 4 = satisfactory: multiple mistakes, partially incorrect answers, limited fluency, short or incomplete sentences, frequent delays.
+     - 5 = poor: many mistakes, mostly incorrect answers, poor fluency, very short answers, very slow responses.
+     - 6 = very poor: unable to answer correctly, very limited language skills, extremely short or no answers, very slow or no responses.
 """
 
 st.title("🎤 English Speaking Practice Bot by Wolkenhauer")
 
 # --- Session Variablen korrekt initialisieren ---
 if "messages" not in st.session_state:
-    st.session_state["messages"] = []  # <- Liste!
+    st.session_state["messages"] = []
 if "start_time" not in st.session_state:
     st.session_state["start_time"] = None
 if "finished" not in st.session_state:
@@ -73,7 +80,6 @@ if not st.session_state["text_loaded"]:
             conversation_text = "Placeholder text for English speaking practice."
             st.warning(f"⚠️ Could not load the selected text '{selected_text_name}' from GitHub. Using placeholder text.")
 
-        # Prompt direkt setzen, kein zusätzliches Thema nötig
         system_prompt = system_prompt_template.format(conversation_text=conversation_text)
         st.session_state["messages"].append({"role": "system", "content": system_prompt})
         st.session_state["conversation_text"] = conversation_text
@@ -122,6 +128,13 @@ if st.session_state["text_loaded"] and not st.session_state["finished"]:
 
         st.session_state["messages"].append({"role": "assistant", "content": assistant_response})
         st.write(f"**Teacher:** {assistant_response}")
+
+        # TTS für einzelne Lehrerantwort
+        tts_response = client.audio.speech.create(model="gpt-4o-mini-tts", voice="alloy", input=assistant_response)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tts_file:
+            tts_file.write(tts_response.read())
+            tts_filename = tts_file.name
+        st.audio(tts_filename)
 
 # --- Feedback & PDF ---
 if st.session_state.get("start_time"):
