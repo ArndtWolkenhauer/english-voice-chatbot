@@ -81,4 +81,14 @@ if audio and not st.session_state["finished"]:
     st.write(f"**Teacher:** {assistant_response}")
 
     # Text-to-Speech Antwort
-    tts_response = client.audio.speech.cre_
+    tts_response = client.audio.speech.create(
+    model="gpt-4o-mini-tts",
+    voice="alloy",
+    input=assistant_response
+)
+  with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tts_file:
+    tts_file.write(tts_response.read())
+    tts_filename = tts_file.name
+
+st.audio(tts_filename)
+
