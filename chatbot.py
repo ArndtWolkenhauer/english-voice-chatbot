@@ -11,7 +11,7 @@ client = openai.OpenAI()
 # Texte auf GitHub
 text_options = {
     "New_York": "https://raw.githubusercontent.com/ArndtWolkenhauer/texts/refs/heads/main/New_York",
-    "Summer_Vacation_Paris": "https://raw.githubusercontent.com/arndtwolkenhauer/texts/main/Summer_Vacation_Paris.txt"
+    "Summer_Vacation_Paris": "raw.githubusercontent.com/ArndtWolkenhauer/texts/refs/heads/main/Summer_Vacation_Paris"
 }
 
 # System Prompt Template
