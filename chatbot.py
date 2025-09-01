@@ -13,7 +13,7 @@ You are an English teacher conducting a speaking exercise with a student at 8th 
 - Use simple vocabulary appropriate for 8th grade.
 - Focus on fluency, pronunciation, grammar, and vocabulary.
 - The student will first choose a topic for the conversation. 
-- Engage in a conversation lasting up to 5 minutes (~10–15 exchanges).
+- Engage in a conversation lasting up to 3 minutes (~10–15 exchanges).
 - At the end of the conversation, provide detailed feedback in English:
   1. What the student did well.
   2. What can be improved.
@@ -34,7 +34,7 @@ if "finished" not in st.session_state:
 # Timer prüfen
 elapsed = time.time() - st.session_state["start_time"]
 
-if elapsed >= 300 and not st.session_state["finished"]:  # 5 Minuten = 300 Sekunden
+if elapsed >= 180 and not st.session_state["finished"]:  # 5 Minuten = 300 Sekunden
     st.subheader("📊 Final Feedback & Grade")
 
     feedback = client.chat.completions.create(
