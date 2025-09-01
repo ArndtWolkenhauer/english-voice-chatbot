@@ -50,10 +50,17 @@ You are an English teacher conducting a speaking exercise with a student at 8th 
 
 st.title("🎤 English Speaking Practice Bot by Wolkenhauer")
 
-# Session Variablen
-for var in ["messages", "start_time", "finished", "text_questions_asked", "text_loaded"]:
-    if var not in st.session_state:
-        st.session_state[var] = False if var in ["finished", "text_loaded"] else 0
+# --- Session Variablen korrekt initialisieren ---
+if "messages" not in st.session_state:
+    st.session_state["messages"] = []  # <- Liste!
+if "start_time" not in st.session_state:
+    st.session_state["start_time"] = None
+if "finished" not in st.session_state:
+    st.session_state["finished"] = False
+if "text_questions_asked" not in st.session_state:
+    st.session_state["text_questions_asked"] = 0
+if "text_loaded" not in st.session_state:
+    st.session_state["text_loaded"] = False
 
 # Hilfsfunktion für PDF
 def safe_text(text):
@@ -72,7 +79,7 @@ if not st.session_state["text_loaded"]:
         except requests.RequestException:
             conversation_text = "Placeholder text for English speaking practice."
             st.warning(f"⚠️ Could not load the selected text '{selected_text_name}' from GitHub. Using placeholder text.")
-        
+
         # Prompt direkt setzen, kein zusätzliches Thema nötig
         system_prompt = system_prompt_template.format(conversation_text=conversation_text)
         st.session_state["messages"].append({"role": "system", "content": system_prompt})
@@ -80,7 +87,7 @@ if not st.session_state["text_loaded"]:
         st.session_state["text_loaded"] = True
         st.session_state["start_time"] = time.time()
 
-# Text anzeigen
+# --- Text anzeigen ---
 if st.session_state.get("text_loaded"):
     st.subheader("📖 Conversation Text / Ausgangstext")
     st.write(st.session_state["conversation_text"])
