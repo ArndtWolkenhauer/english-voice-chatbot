@@ -92,7 +92,7 @@ if st.session_state.get("text_loaded"):
     st.write(st.session_state["conversation_text"])
 
 # --- Timer ---
-if st.session_state.get("start_time"):
+if st.session_state.get("start_time") and not st.session_state["finished"]:
     elapsed = time.time() - st.session_state["start_time"]
     remaining = max(0, 180 - int(elapsed))
     minutes = remaining // 60
@@ -101,45 +101,46 @@ if st.session_state.get("start_time"):
 
 # --- Gespräch ---
 if st.session_state["text_loaded"] and not st.session_state["finished"]:
-    audio_input = st.audio_input("🎙️ Record your answer")
-    if audio_input:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:
-            f.write(audio_input.getbuffer())
-            temp_filename = f.name
+    if elapsed < 180:  # nur solange Timer läuft
+        audio_input = st.audio_input("🎙️ Record your answer")
+        if audio_input:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:
+                f.write(audio_input.getbuffer())
+                temp_filename = f.name
 
-        # Speech-to-Text
-        with open(temp_filename, "rb") as f:
-            transcript = client.audio.transcriptions.create(model="whisper-1", file=f)
-        user_text = transcript.text
-        st.write(f"**You said:** {user_text}")
+            # Speech-to-Text
+            with open(temp_filename, "rb") as f:
+                transcript = client.audio.transcriptions.create(model="whisper-1", file=f)
+            user_text = transcript.text
+            st.write(f"**You said:** {user_text}")
 
-        st.session_state["messages"].append({"role": "user", "content": user_text})
+            st.session_state["messages"].append({"role": "user", "content": user_text})
 
-        # Lehrerantwort (Textfragen mit Wahrscheinlichkeit)
-        ask_question = random.random() < 0.3 and st.session_state["text_questions_asked"] < 2
-        if ask_question:
-            question_prompt = st.session_state["messages"] + [{"role": "system", "content": "Ask one comprehension question about the provided text to the student."}]
-            response = client.chat.completions.create(model="gpt-4o-mini", messages=question_prompt)
-            assistant_response = response.choices[0].message.content
-            st.session_state["text_questions_asked"] += 1
-        else:
-            response = client.chat.completions.create(model="gpt-4o-mini", messages=st.session_state["messages"])
-            assistant_response = response.choices[0].message.content
+            # Lehrerantwort (Textfragen mit Wahrscheinlichkeit)
+            ask_question = random.random() < 0.3 and st.session_state["text_questions_asked"] < 2
+            if ask_question:
+                question_prompt = st.session_state["messages"] + [{"role": "system", "content": "Ask one comprehension question about the provided text to the student."}]
+                response = client.chat.completions.create(model="gpt-4o-mini", messages=question_prompt)
+                assistant_response = response.choices[0].message.content
+                st.session_state["text_questions_asked"] += 1
+            else:
+                response = client.chat.completions.create(model="gpt-4o-mini", messages=st.session_state["messages"])
+                assistant_response = response.choices[0].message.content
 
-        st.session_state["messages"].append({"role": "assistant", "content": assistant_response})
-        st.write(f"**Teacher:** {assistant_response}")
+            st.session_state["messages"].append({"role": "assistant", "content": assistant_response})
+            st.write(f"**Teacher:** {assistant_response}")
 
-        # TTS für einzelne Lehrerantwort
-        tts_response = client.audio.speech.create(model="gpt-4o-mini-tts", voice="alloy", input=assistant_response)
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tts_file:
-            tts_file.write(tts_response.read())
-            tts_filename = tts_file.name
-        st.audio(tts_filename)
+            # TTS für einzelne Lehrerantwort
+            tts_response = client.audio.speech.create(model="gpt-4o-mini-tts", voice="alloy", input=assistant_response)
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tts_file:
+                tts_file.write(tts_response.read())
+                tts_filename = tts_file.name
+            st.audio(tts_filename)
 
 # --- Feedback & PDF ---
-if st.session_state.get("start_time"):
+if st.session_state.get("start_time") and not st.session_state["finished"]:
     elapsed = time.time() - st.session_state["start_time"]
-    if elapsed >= 180 and not st.session_state["finished"]:
+    if elapsed >= 180:
         st.subheader("📊 Final Feedback & Grade")
 
         # Zusammenfassung
