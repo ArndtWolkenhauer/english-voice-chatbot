@@ -5,6 +5,7 @@ import time
 import requests
 from fpdf import FPDF
 import random
+import threading
 
 # OpenAI Client initialisieren
 client = openai.OpenAI()
@@ -91,98 +92,105 @@ if st.session_state.get("text_loaded"):
     st.subheader("📖 Conversation Text / Ausgangstext")
     st.write(st.session_state["conversation_text"])
 
-# --- Timer ---
-if st.session_state.get("start_time") and not st.session_state["finished"]:
-    elapsed = time.time() - st.session_state["start_time"]
-    remaining = max(0, 180 - int(elapsed))
-    minutes = remaining // 60
-    seconds = remaining % 60
-    st.info(f"⏱ Remaining time: {minutes:02d}:{seconds:02d}")
+# --- Timer-Platzhalter ---
+timer_placeholder = st.empty()
+
+# --- Funktion für Live-Timer & automatisches Feedback ---
+def live_timer():
+    while not st.session_state.get("finished", False):
+        elapsed = time.time() - st.session_state["start_time"]
+        remaining = max(0, 180 - int(elapsed))
+        minutes = remaining // 60
+        seconds = remaining % 60
+        timer_placeholder.info(f"⏱ Remaining time: {minutes:02d}:{seconds:02d}")
+        if remaining <= 0:
+            st.session_state["finished"] = True
+        time.sleep(1)
+        st.experimental_rerun()
+
+# --- Timer-Thread starten ---
+if st.session_state.get("text_loaded") and "timer_thread_started" not in st.session_state:
+    st.session_state["timer_thread_started"] = True
+    threading.Thread(target=live_timer, daemon=True).start()
 
 # --- Gespräch ---
 if st.session_state["text_loaded"] and not st.session_state["finished"]:
-    if elapsed < 180:  # nur solange Timer läuft
-        audio_input = st.audio_input("🎙️ Record your answer")
-        if audio_input:
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:
-                f.write(audio_input.getbuffer())
-                temp_filename = f.name
+    audio_input = st.audio_input("🎙️ Record your answer")
+    if audio_input:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:
+            f.write(audio_input.getbuffer())
+            temp_filename = f.name
 
-            # Speech-to-Text
-            with open(temp_filename, "rb") as f:
-                transcript = client.audio.transcriptions.create(model="whisper-1", file=f)
-            user_text = transcript.text
-            st.write(f"**You said:** {user_text}")
+        # Speech-to-Text
+        with open(temp_filename, "rb") as f:
+            transcript = client.audio.transcriptions.create(model="whisper-1", file=f)
+        user_text = transcript.text
+        st.write(f"**You said:** {user_text}")
 
-            st.session_state["messages"].append({"role": "user", "content": user_text})
+        st.session_state["messages"].append({"role": "user", "content": user_text})
 
-            # Lehrerantwort (Textfragen mit Wahrscheinlichkeit)
-            ask_question = random.random() < 0.3 and st.session_state["text_questions_asked"] < 2
-            if ask_question:
-                question_prompt = st.session_state["messages"] + [{"role": "system", "content": "Ask one comprehension question about the provided text to the student."}]
-                response = client.chat.completions.create(model="gpt-4o-mini", messages=question_prompt)
-                assistant_response = response.choices[0].message.content
-                st.session_state["text_questions_asked"] += 1
-            else:
-                response = client.chat.completions.create(model="gpt-4o-mini", messages=st.session_state["messages"])
-                assistant_response = response.choices[0].message.content
+        # Lehrerantwort (Textfragen mit Wahrscheinlichkeit)
+        ask_question = random.random() < 0.3 and st.session_state["text_questions_asked"] < 2
+        if ask_question:
+            question_prompt = st.session_state["messages"] + [{"role": "system", "content": "Ask one comprehension question about the provided text to the student."}]
+            response = client.chat.completions.create(model="gpt-4o-mini", messages=question_prompt)
+            assistant_response = response.choices[0].message.content
+            st.session_state["text_questions_asked"] += 1
+        else:
+            response = client.chat.completions.create(model="gpt-4o-mini", messages=st.session_state["messages"])
+            assistant_response = response.choices[0].message.content
 
-            st.session_state["messages"].append({"role": "assistant", "content": assistant_response})
-            st.write(f"**Teacher:** {assistant_response}")
+        st.session_state["messages"].append({"role": "assistant", "content": assistant_response})
+        st.write(f"**Teacher:** {assistant_response}")
 
-            # TTS für einzelne Lehrerantwort
-            tts_response = client.audio.speech.create(model="gpt-4o-mini-tts", voice="alloy", input=assistant_response)
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tts_file:
-                tts_file.write(tts_response.read())
-                tts_filename = tts_file.name
-            st.audio(tts_filename)
+        # TTS für einzelne Lehrerantwort
+        tts_response = client.audio.speech.create(model="gpt-4o-mini-tts", voice="alloy", input=assistant_response)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tts_file:
+            tts_file.write(tts_response.read())
+            tts_filename = tts_file.name
+        st.audio(tts_filename)
 
 # --- Feedback & PDF ---
-if st.session_state.get("start_time") and not st.session_state["finished"]:
-    elapsed = time.time() - st.session_state["start_time"]
-    if elapsed >= 180:
-        st.subheader("📊 Final Feedback & Grade")
+if st.session_state.get("finished") and st.session_state.get("text_loaded"):
+    st.subheader("📊 Final Feedback & Grade")
 
-        # Zusammenfassung
-        summary = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=st.session_state["messages"] + [{"role": "system", "content": "Summarize the conversation from the teacher's perspective."}]
-        )
-        summary_text = summary.choices[0].message.content
+    # Zusammenfassung
+    summary = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=st.session_state["messages"] + [{"role": "system", "content": "Summarize the conversation from the teacher's perspective."}]
+    )
+    summary_text = summary.choices[0].message.content
 
-        # Feedback + Note
-        feedback = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=st.session_state["messages"] + [{"role": "system", "content": f"Now give detailed feedback and assign a grade (1-6). Conversation summary: {summary_text}"}]
-        )
-        feedback_text = feedback.choices[0].message.content
-        st.write(feedback_text)
+    # Feedback + Note
+    feedback = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=st.session_state["messages"] + [{"role": "system", "content": f"Now give detailed feedback and assign a grade (1-6). Conversation summary: {summary_text}"}]
+    )
+    feedback_text = feedback.choices[0].message.content
+    st.write(feedback_text)
 
-        # --- PDF generieren ---
-        def generate_pdf(messages, feedback_text, filename="conversation.pdf"):
-            pdf = FPDF()
-            pdf.add_page()
-            pdf.set_font("Arial", size=12)
-            pdf.cell(0, 10, "English Speaking Practice", ln=True, align="C")
-            pdf.ln(10)
-            for msg in messages:
-                role = msg["role"].capitalize()
-                content = safe_text(msg["content"])
-                pdf.multi_cell(0, 10, f"{role}: {content}")
-                pdf.ln(2)
-            pdf.ln(5)
-            pdf.set_font("Arial", "B", 12)
-            pdf.cell(0, 10, "Final Feedback:", ln=True)
-            pdf.set_font("Arial", size=12)
-            pdf.multi_cell(0, 10, safe_text(feedback_text))
-            pdf.output(filename)
-            return filename
+    # --- PDF generieren ---
+    def generate_pdf(messages, feedback_text, filename="conversation.pdf"):
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", size=12)
+        pdf.cell(0, 10, "English Speaking Practice", ln=True, align="C")
+        pdf.ln(10)
+        for msg in messages:
+            role = msg["role"].capitalize()
+            content = safe_text(msg["content"])
+            pdf.multi_cell(0, 10, f"{role}: {content}")
+            pdf.ln(2)
+        pdf.ln(5)
+        pdf.set_font("Arial", "B", 12)
+        pdf.cell(0, 10, "Final Feedback:", ln=True)
+        pdf.set_font("Arial", size=12)
+        pdf.multi_cell(0, 10, safe_text(feedback_text))
+        pdf.output(filename)
+        return filename
 
-        pdf_file = generate_pdf(st.session_state["messages"], feedback_text)
+    pdf_file = generate_pdf(st.session_state["messages"], feedback_text)
 
-        # --- PDF Downloadbutton ---
-        with open(pdf_file, "rb") as f:
-            st.download_button("📥 Download conversation as PDF", f, "conversation.pdf")
-
-        st.session_state["finished"] = True
-        st.stop()
+    # --- PDF Downloadbutton ---
+    with open(pdf_file, "rb") as f:
+        st.download_button("📥 Download conversation as PDF", f, "conversation.pdf")
