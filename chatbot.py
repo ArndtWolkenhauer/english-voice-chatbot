@@ -13,9 +13,9 @@ client = openai.OpenAI()
 text_options = {
     "0_New_York": "https://raw.githubusercontent.com/ArndtWolkenhauer/texts/main/New_York",
     "0_Summer_Vacation_Paris": "https://raw.githubusercontent.com/ArndtWolkenhauer/texts/main/Summer_Vacation_Paris",
-    "1_A_New_Colleague": "https://raw.githubusercontent.com/ArndtWolkenhauer/texts/main/1_A_New_Colleague",
-    "2_Fundamentals_of_Measuring_Technique": "https://raw.githubusercontent.com/ArndtWolkenhauer/texts/main/2_Fundamentals_of_Measuring_Technique",
-    "3_Measuring_Errors": "https://raw.githubusercontent.com/ArndtWolkenhauer/texts/main/3_Measuring_Errors"
+    "1_A_New_Colleague": "https://raw.githubusercontent.com/ArndtWolkenhauer/texts/main/1_A_New_Colleague.txt",
+    "2_Fundamentals_of_Measuring_Technique": "https://raw.githubusercontent.com/ArndtWolkenhauer/texts/main/2_Fundamentals_of_Measuring_Technique.txt",
+    "3_Measuring_Errors": "https://raw.githubusercontent.com/ArndtWolkenhauer/texts/main/3_Measuring_Errors.txt"
 }
 
 # System Prompt Template
