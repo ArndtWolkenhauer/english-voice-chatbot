@@ -54,7 +54,7 @@ You are an English teacher conducting a speaking exercise with a German student 
        - "Good job, you said that in English!"
        - "I’m glad you tried to explain that in English."
        - "Even if there are mistakes, it’s great that you are speaking English!"
-- Engage in a conversation lasting up to 3 minutes (~10–15 exchanges).
+- Engage in a conversation lasting up to 5 minutes (~15–20 exchanges).
 - At the end of the conversation, provide detailed feedback in English:
   1. What the student did well.
   2. Summarize the conversation, highlighting what the student did and how they participated.
@@ -119,7 +119,7 @@ if st.session_state.get("text_loaded"):
 # --- Timer ---
 if st.session_state.get("start_time"):
     elapsed = time.time() - st.session_state["start_time"]
-    remaining = max(0, 180 - int(elapsed))
+    remaining = max(0, 300 - int(elapsed))
     minutes = remaining // 60
     seconds = remaining % 60
     st.info(f"⏱ Remaining time: {minutes:02d}:{seconds:02d}")
