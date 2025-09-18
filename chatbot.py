@@ -164,7 +164,7 @@ if st.session_state["text_loaded"] and not st.session_state["finished"]:
 # --- Feedback & PDF ---
 if st.session_state.get("start_time"):
     elapsed = time.time() - st.session_state["start_time"]
-    if elapsed >= 180 and not st.session_state["finished"]:
+    if elapsed >= 300 and not st.session_state["finished"]:
         st.subheader("📊 Final Feedback & Grade")
 
         # Zusammenfassung
