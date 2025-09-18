@@ -73,7 +73,7 @@ You are an English teacher conducting a speaking exercise with a German student 
 - Be friendly, supportive, and motivate the student.
 """
 
-st.title("🎤 English Speaking Practice Bot by Wolkenhauer")
+st.title("🎤 English Speaking with Mr. Bot Wolski")
 
 # --- Session Variablen korrekt initialisieren ---
 if "messages" not in st.session_state:
