@@ -16,7 +16,8 @@ text_options = {
     "1_A_New_Colleague": "https://raw.githubusercontent.com/ArndtWolkenhauer/texts/main/1_A_New_Colleague.txt",
     "2_Fundamentals_of_Measuring_Technique": "https://raw.githubusercontent.com/ArndtWolkenhauer/texts/main/2_Fundamentals_of_Measuring_Technique.txt",
     "3_Measuring_Errors": "https://raw.githubusercontent.com/ArndtWolkenhauer/texts/main/3_Measuring_Errors.txt",
-    "4_Length_Measuring_Instruments": "https://raw.githubusercontent.com/ArndtWolkenhauer/texts/main/4_Length_Measuring_Instruments.txt"
+    "4_Length_Measuring_Instruments": "https://raw.githubusercontent.com/ArndtWolkenhauer/texts/main/4_Length_Measuring_Instruments.txt",
+    "5_Working_with_plug_gauges": "https://raw.githubusercontent.com/ArndtWolkenhauer/texts/main/5_Working_with_plug_gauges.txt"
 }
 
 # System Prompt Template
