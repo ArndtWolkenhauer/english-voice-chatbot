@@ -18,7 +18,8 @@ text_options = {
     "3_Measuring_Errors": "https://raw.githubusercontent.com/ArndtWolkenhauer/texts/main/3_Measuring_Errors.txt",
     "4_Length_Measuring_Instruments": "https://raw.githubusercontent.com/ArndtWolkenhauer/texts/main/4_Length_Measuring_Instruments.txt",
     "5_Working_with_plug_gauges": "https://raw.githubusercontent.com/ArndtWolkenhauer/texts/main/5_Working_with_plug_gauges.txt",
-    "6_Digital_caliper_Micrometer": "https://raw.githubusercontent.com/ArndtWolkenhauer/texts/main/6_Digital_caliper_Micrometer.txt"
+    "6_Digital_caliper_Micrometer": "https://raw.githubusercontent.com/ArndtWolkenhauer/texts/main/6_Digital_caliper_Micrometer.txt",
+    "7_Surface_testing": "https://raw.githubusercontent.com/ArndtWolkenhauer/texts/main/7_Surface_testing"
 }
 
 # System Prompt Template
